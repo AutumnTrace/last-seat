@@ -1,0 +1,22 @@
+# The whole demo: PostgreSQL and the API (which also serves the Angular app) on http://localhost:8080.
+services:
+  db:
+    image: postgres:18.7-alpine
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: lastseat
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d lastseat"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+  app:
+    build: .
+    environment:
+      ConnectionStrings__LastSeat: Host=db;Database=lastseat;Username=postgres;Password=postgres
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
