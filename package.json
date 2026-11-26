@@ -1,0 +1,22 @@
+{
+  "name": "last-seat",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "workspaces": [
+    "web",
+    "e2e"
+  ],
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build": "npm run build -w web",
+    "demo": "npm run build && dotnet run --project src/LastSeat.Api",
+    "reset": "dotnet run --project src/LastSeat.Api -- reset",
+    "test": "dotnet test && npm test -w web",
+    "e2e": "npm test -w e2e",
+    "record": "npm run record -w e2e",
+    "race": "npm run race -w e2e"
+  }
+}

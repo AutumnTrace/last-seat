@@ -1,0 +1,166 @@
+@let snap = snapshot();
+<header class="topbar">
+  <a class="brand" routerLink="/">Last Seat</a>
+  @if (snap) {
+    <p class="perf">
+      <strong>{{ snap.performance.title }}</strong>
+      <span>{{ snap.performance.venue }}</span>
+    </p>
+  }
+  <p class="who">
+    Booking as <strong data-testid="session-name">{{ name() }}</strong>
+    <span class="conn" [class]="feed.connection()" data-testid="connection">{{ feed.connection() }}</span>
+  </p>
+</header>
+
+<main class="booking">
+  <section class="house" aria-label="Seats">
+    <div class="view-switch" role="group" aria-label="Show seats as">
+      <button type="button" [attr.aria-pressed]="view() === 'map'" (click)="view.set('map')">Seat map</button>
+      <button type="button" [attr.aria-pressed]="view() === 'list'" (click)="view.set('list')">List</button>
+    </div>
+
+    @if (!snap) {
+      <p class="loading">Loading the house…</p>
+    } @else if (view() === 'map') {
+      <app-seat-map
+        [seats]="seats()"
+        [selected]="selected()"
+        [pending]="pending()"
+        [readonly]="!!hold() || !!busy()"
+        (toggle)="toggle($event)"
+      />
+      <ul class="legend" aria-label="Legend">
+        <li><span class="key available"></span>Free</li>
+        <li><span class="key selected"></span>Selected</li>
+        <li><span class="key yours"></span>Yours</li>
+        <li><span class="key held"></span>Held by someone else</li>
+        <li><span class="key sold"></span>Sold</li>
+      </ul>
+    } @else {
+      <app-seat-list [seats]="seats()" [selected]="selected()" [readonly]="!!hold() || !!busy()" (toggle)="toggle($event)" />
+    }
+  </section>
+
+  <aside class="panel" aria-label="Your booking" [attr.aria-busy]="!!busy()">
+    @let held = hold();
+    @let done = booking();
+
+    @if (done) {
+      <section class="card booked" data-testid="booked">
+        <h2>Booked</h2>
+        <p class="big">{{ label(seats().filter(s => done.seats.some(d => d.id === s.id))) }}</p>
+        <p>Reference <strong data-testid="reference">{{ done.reference }}</strong>, confirmed at {{ clockTime(done.confirmedAt) }}.</p>
+        <p class="fine">A simulated booking: no payment and no ticket.</p>
+      </section>
+    } @else if (held) {
+      <section class="card holding" data-testid="hold">
+        <h2>Held for you</h2>
+        <p class="big">{{ label(heldSeats()) }}</p>
+        <div class="timer" role="timer" aria-label="Time left on your hold">
+          <div class="bar"><div class="fill" [style.width.%]="holdFraction() * 100"></div></div>
+          <span data-testid="countdown">{{ countdown(msLeft()) }}</span>
+        </div>
+        <p class="fine">Until {{ clockTime(held.expiresAt) }}, database time. Nobody else can take these seats until then.</p>
+        <div class="actions">
+          <button type="button" class="primary" (click)="confirm()" [disabled]="!!busy()" data-testid="confirm">
+            {{ busy() === 'confirming' ? 'Confirming…' : 'Confirm booking' }}
+          </button>
+          <button type="button" (click)="release()" [disabled]="!!busy()">Release</button>
+        </div>
+      </section>
+    } @else {
+      <section class="card choose">
+        <h2>Your seats</h2>
+        @if (selectedSeats().length === 0) {
+          <p class="muted">Pick seats on the map or in the list. Up to 8, held together or not at all.</p>
+        } @else {
+          <p class="big" data-testid="selection">{{ label(selectedSeats()) }}</p>
+        }
+        <button
+          type="button"
+          class="primary"
+          (click)="holdSeats()"
+          [disabled]="selected().size === 0 || !!busy()"
+          data-testid="hold-button"
+        >
+          @if (busy() === 'holding') {
+            Holding {{ label(selectedSeats()) }}…
+          } @else {
+            Hold {{ selected().size === 1 ? 'this seat' : selected().size > 1 ? 'these ' + selected().size + ' seats' : 'seats' }} for 90 seconds
+          }
+        </button>
+        @if (retrying() > 0) {
+          <p class="fine">No answer yet: sending attempt {{ retrying() }} with the same request key.</p>
+        }
+      </section>
+    }
+
+    @if (conflict(); as c) {
+      <section class="card conflict" role="alert" data-testid="conflict">
+        <h2>{{ names(c.conflicts) }} went to someone else</h2>
+        <p>{{ conflictStory(c) }}</p>
+        <p>Nothing was held for you: a group gets every seat or none.</p>
+        @if (c.stillAvailable.length > 0) {
+          <p>Still free from your selection, and still selected: <strong>{{ names(c.stillAvailable) }}</strong>.</p>
+        }
+        @if (c.alternatives.length > 0) {
+          <h3>Try instead</h3>
+          <ul class="alternatives">
+            @for (alt of c.alternatives; track alt.label) {
+              <li>
+                <button type="button" (click)="selectAlternative(alt.seatIds)" data-testid="alternative">
+                  Select {{ alt.label }}
+                </button>
+                <span class="muted">{{ alt.kind === 'apart' ? 'closest free seats, not together' : alt.kind === 'together' ? 'together' : 'nearest free seat' }}</span>
+              </li>
+            }
+          </ul>
+        } @else {
+          <p class="muted">No other seats are free.</p>
+        }
+      </section>
+    }
+
+    @if (expired(); as e) {
+      <section class="card conflict" role="alert" data-testid="expired">
+        <h2>Your hold ran out first</h2>
+        <p>
+          The hold expired at {{ clockTime(e.expiredAt) }}. Your confirmation was decided at {{ clockTime(e.decidedAt) }}, so
+          nothing was booked.
+        </p>
+        <ul class="seat-fates">
+          @for (s of e.seats; track s.seatId) {
+            <li>
+              <strong>{{ s.label }}</strong>
+              @switch (s.state) {
+                @case ('held') {
+                  is now held by {{ s.yours ? 'you, in another tab' : 'another customer' }} (since {{ clockTime(s.since) }}).
+                }
+                @case ('booked') {
+                  has been booked by {{ s.yours ? 'you' : 'another customer' }}.
+                }
+                @default {
+                  is still free and still selected.
+                }
+              }
+            </li>
+          }
+        </ul>
+      </section>
+    }
+
+    @if (problem(); as p) {
+      <p class="card problem" role="alert">{{ p }}</p>
+    }
+
+    @for (n of notices(); track $index) {
+      <p class="notice" data-testid="notice">
+        {{ n }}
+        <button type="button" class="dismiss" (click)="dismissNotice($index)" aria-label="Dismiss">×</button>
+      </p>
+    }
+
+    <p class="sr-only" aria-live="polite" data-testid="announcement">{{ announcement() }}</p>
+  </aside>
+</main>

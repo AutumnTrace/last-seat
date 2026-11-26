@@ -1,0 +1,114 @@
+:host {
+  display: block;
+}
+
+.map {
+  width: 100%;
+  height: auto;
+  display: block;
+  user-select: none;
+}
+
+.stage {
+  fill: var(--stage);
+}
+
+.stage-label {
+  fill: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.3em;
+  text-anchor: middle;
+}
+
+.row-label {
+  fill: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  text-anchor: middle;
+}
+
+.seat {
+  cursor: default;
+  outline: none;
+}
+
+.seat rect {
+  stroke-width: 1.5;
+  transition: fill 120ms;
+}
+
+.seat .num {
+  font-size: 10px;
+  text-anchor: middle;
+  pointer-events: none;
+}
+
+.available rect {
+  fill: var(--panel);
+  stroke: var(--seat-free);
+}
+
+.available .num {
+  fill: var(--seat-free);
+}
+
+.available,
+.selected {
+  cursor: pointer;
+}
+
+.available:hover rect {
+  fill: var(--seat-free-hover);
+}
+
+.selected rect {
+  fill: var(--seat-free);
+  stroke: var(--seat-free);
+}
+
+.selected .num,
+.held-yours .num,
+.pending .num,
+.booked-yours .num {
+  fill: #fff;
+}
+
+.held-yours rect,
+.booked-yours rect {
+  fill: var(--seat-yours);
+  stroke: var(--seat-yours-line);
+}
+
+.held rect {
+  stroke: var(--seat-held-line);
+}
+
+.booked rect {
+  fill: var(--seat-sold);
+  stroke: var(--seat-sold);
+}
+
+.pending rect {
+  fill: var(--seat-free);
+  stroke: var(--ink);
+  stroke-width: 2;
+  stroke-dasharray: 4 3;
+  animation: march 0.6s linear infinite;
+}
+
+@keyframes march {
+  to {
+    stroke-dashoffset: -14;
+  }
+}
+
+.seat:focus-visible rect {
+  stroke: var(--focus);
+  stroke-width: 3;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pending rect {
+    animation: none;
+  }
+}

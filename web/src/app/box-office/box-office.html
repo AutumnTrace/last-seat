@@ -1,0 +1,124 @@
+@let v = view();
+<header class="topbar">
+  <a class="brand" routerLink="/">Last Seat</a>
+  <h1>Box office</h1>
+  @if (v) {
+    <p class="clock">
+      Database clock <strong data-testid="db-clock">{{ clockTime(v.clock.now) }}</strong>
+      @if (v.clock.offsetMs > 0) {
+        <span class="tag">skipped ahead {{ v.clock.offsetMs / 1000 }} s</span>
+      }
+      <span class="tag" [class.warn]="v.clock.cleanupPaused" data-testid="cleanup-state">
+        cleanup {{ v.clock.cleanupPaused ? 'paused' : 'running' }}
+      </span>
+      <span class="conn" [class]="feed.connection()">{{ feed.connection() }}</span>
+    </p>
+  }
+</header>
+
+@if (v) {
+  <main class="office">
+    <section class="controls" aria-label="Demo controls">
+      <button type="button" (click)="skip(30)" [disabled]="working()">Skip ahead 30 s</button>
+      <button type="button" (click)="skip(90)" [disabled]="working()" data-testid="skip-90">Skip ahead 90 s</button>
+      @if (v.clock.cleanupPaused) {
+        <button type="button" (click)="setCleanup(false)" [disabled]="working()" data-testid="resume-cleanup">Resume cleanup</button>
+      } @else {
+        <button type="button" (click)="setCleanup(true)" [disabled]="working()" data-testid="pause-cleanup">Pause cleanup</button>
+      }
+      <button type="button" (click)="reset()" [disabled]="working()" data-testid="reset">Reset demo</button>
+      <p class="fine">
+        These move the clock that every allocation decision reads (<code>lastseat_now()</code>) and stop the sweep that clears
+        expired holds. They exist for the demo.
+      </p>
+    </section>
+
+    <section class="house" aria-label="House">
+      <h2>{{ v.performance.title }}</h2>
+      <p class="counts">
+        <span><strong>{{ v.counts.available }}</strong> free</span>
+        <span><strong>{{ v.counts.held }}</strong> held</span>
+        <span><strong>{{ v.counts.booked }}</strong> sold</span>
+      </p>
+      @if (feed.snapshot(); as snap) {
+        <app-seat-map [seats]="snap.seats" [readonly]="true" />
+      }
+    </section>
+
+    <section class="holds" aria-label="Open holds">
+      <h2>Open holds</h2>
+      @if (v.holds.length === 0) {
+        <p class="muted">None.</p>
+      } @else {
+        <table>
+          <thead>
+            <tr><th>Customer</th><th>Seats</th><th>Held at</th><th>Left</th></tr>
+          </thead>
+          <tbody>
+            @for (h of v.holds; track h.holdId) {
+              <tr data-testid="hold-row">
+                <td>{{ h.session }}</td>
+                <td>{{ h.seats.join(', ') }}</td>
+                <td class="num">{{ clockTime(h.createdAt) }}</td>
+                <td class="num">
+                  @if (left(h.expiresAt) > 0) {
+                    {{ countdown(left(h.expiresAt)) }}
+                  } @else if (h.seatsStillMarked) {
+                    expired; seats still marked until the sweep runs, free to take
+                  } @else {
+                    expired
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
+
+      <h2>Online bookings</h2>
+      @if (v.bookings.length === 0) {
+        <p class="muted">None yet.</p>
+      } @else {
+        <table>
+          <thead>
+            <tr><th>Reference</th><th>Customer</th><th>Seats</th><th>Confirmed</th></tr>
+          </thead>
+          <tbody>
+            @for (b of v.bookings; track b.reference) {
+              <tr>
+                <td>{{ b.reference }}</td>
+                <td>{{ b.session }}</td>
+                <td>{{ b.seats.join(', ') }}</td>
+                <td class="num">{{ clockTime(b.createdAt) }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
+    </section>
+
+    <section class="log" aria-label="Decision log">
+      <h2>Decisions, newest first</h2>
+      <table>
+        <thead>
+          <tr><th>Database time</th><th>Customer</th><th>Request</th><th>Seats</th><th>Outcome</th><th>Lock wait</th><th>Detail</th></tr>
+        </thead>
+        <tbody>
+          @for (e of v.events; track e.id) {
+            <tr [class]="e.outcome" data-testid="event-row">
+              <td class="num">{{ clockTime(e.at) }}</td>
+              <td>{{ e.session ?? '' }}</td>
+              <td>{{ e.kind }}</td>
+              <td>{{ e.seats.join(', ') }}</td>
+              <td>{{ e.outcome }}</td>
+              <td class="num">{{ e.lockWaitMs === null ? '' : ms(e.lockWaitMs) }}</td>
+              <td>{{ e.detail ?? '' }}</td>
+            </tr>
+          } @empty {
+            <tr><td colspan="7" class="muted">Nothing yet.</td></tr>
+          }
+        </tbody>
+      </table>
+    </section>
+  </main>
+}

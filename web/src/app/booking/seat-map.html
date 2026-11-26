@@ -1,0 +1,57 @@
+@let b = box();
+<svg
+  class="map"
+  [attr.viewBox]="b.minX + ' ' + b.minY + ' ' + b.width + ' ' + b.height"
+  role="group"
+  aria-label="Seat map. Use the arrow keys to move between seats, Space to select, N to jump to the next free seat."
+>
+  <defs>
+    <pattern id="hatch" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <rect width="5" height="5" fill="var(--seat-held)" />
+      <line x1="0" y1="0" x2="0" y2="5" stroke="var(--seat-held-line)" stroke-width="2" />
+    </pattern>
+  </defs>
+
+  <g aria-hidden="true">
+    <rect class="stage" [attr.x]="b.minX + b.width * 0.2" [attr.y]="b.stageY" [attr.width]="b.width * 0.6" height="22" rx="4" />
+    <text class="stage-label" [attr.x]="b.minX + b.width / 2" [attr.y]="b.stageY + 15">STAGE</text>
+  </g>
+
+  @for (row of rows(); track row[0].row) {
+    <g role="group" [attr.aria-label]="'Row ' + row[0].row">
+      <text class="row-label" aria-hidden="true" [attr.x]="row[0].x - 26" [attr.y]="row[0].y + 4">{{ row[0].row }}</text>
+      <text class="row-label" aria-hidden="true" [attr.x]="row[row.length - 1].x + 26" [attr.y]="row[row.length - 1].y + 4">{{ row[0].row }}</text>
+      @for (seat of row; track seat.id) {
+        @let st = status(seat);
+        <g
+          class="seat"
+          [class]="st"
+          [attr.data-seat]="seat.id"
+          [attr.data-label]="seat.label"
+          [attr.data-state]="st"
+          [attr.transform]="'translate(' + seat.x + ',' + seat.y + ')'"
+          role="checkbox"
+          [attr.aria-checked]="checked(seat)"
+          [attr.aria-disabled]="readonly() || !canSelect(seat)"
+          [attr.aria-busy]="st === 'pending' || null"
+          [attr.aria-label]="ariaLabel(seat)"
+          [attr.tabindex]="seat.id === tabStop() ? 0 : -1"
+          (click)="activate(seat)"
+          (keydown)="onKey($event, seat)"
+        >
+          <rect
+            [attr.x]="-seatW / 2"
+            [attr.y]="-seatH / 2"
+            [attr.width]="seatW"
+            [attr.height]="seatH"
+            rx="5"
+            [attr.fill]="st === 'held' ? 'url(#hatch)' : null"
+          />
+          @if (st !== 'booked' && st !== 'held') {
+            <text class="num" aria-hidden="true" y="4">{{ seat.number }}</text>
+          }
+        </g>
+      }
+    </g>
+  }
+</svg>
