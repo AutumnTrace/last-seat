@@ -1,6 +1,6 @@
 # Build the Angular app into the API's wwwroot, publish the API, run it on the ASP.NET runtime.
 
-FROM node:24.21.0-alpine AS web
+FROM node:26.13.1-alpine AS web
 WORKDIR /src
 COPY package.json package-lock.json ./
 COPY web/package.json web/
