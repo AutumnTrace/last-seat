@@ -1,0 +1,17 @@
+{
+  "name": "e2e",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "playwright test",
+    "record": "node record/record-race.mjs",
+    "race": "node record/race-50.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.65.1",
+    "sharp": "0.35.5",
+    "@axe-core/playwright": "4.14.1",
+    "@types/node": "24.19.4"
+  }
+}
